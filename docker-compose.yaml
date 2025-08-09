@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=dbuser
+      - POSTGRES_PASSWORD=pass123
+      - POSTGRES_DB=crowdfunding
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbuser -d crowdfunding"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  spring:
+    image: sp
+    build:
+      context: .
+      dockerfile: nonroot.Dockerfile
+    ports:
+      - "9090:9090"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/crowdfunding
+      - SPRING_DATASOURCE_USERNAME=dbuser
+      - SPRING_DATASOURCE_PASSWORD=pass123
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/actuator/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  frontend:
+    #image: front
+    build:
+      #context: https://github.com/MaximosSpyridonDiakoumakos/DS_Assignment_2024-CrowdFunding/Frontend.git#main
+      context: ../Frontend
+      dockerfile: Dockerfile
+#    environment:
+#      - VITE_BACKEND=http://spring:9090
+    ports:
+      - 9000:80
+    depends_on:
+      spring:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
